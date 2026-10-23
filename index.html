@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#176b4d">
+<title>Comptoir boissons</title>
+<style>
+:root{--green:#176b4d;--pale:#e4f4eb;--ink:#18251f;--muted:#66756d;--line:#d8e2db;--bg:#f2f5f2;--red:#b42318}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:760px;margin:auto;padding:20px 14px 50px}
+h1{font-size:30px;margin:4px 0 2px} .sub{color:var(--muted);margin:0 0 20px}
+.card{background:white;border:1px solid var(--line);border-radius:22px;padding:20px;margin:16px 0;box-shadow:0 4px 18px #15251a08}
+h2{font-size:23px;margin:0 0 16px} h3{font-size:19px;margin:22px 0 10px}
+label{display:block;font-weight:650;margin:13px 0 7px}
+input,select,button{font:inherit;width:100%;border-radius:14px;padding:14px;border:1px solid #cbd6ce;background:white;color:var(--ink);min-height:52px}
+input[type=number]{appearance:textfield}
+button{border:0;background:var(--green);color:white;font-weight:700;cursor:pointer;margin-top:14px}
+button.secondary{background:var(--pale);color:var(--green)} button.danger{background:#fff0ee;color:var(--red)}
+button:active{transform:scale(.99)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stat{background:#edf4f8;border-radius:16px;padding:15px}.stat span{display:block;color:var(--muted)}.stat strong{font-size:25px}
+.total{background:var(--pale);padding:15px;border-radius:14px;margin-top:14px;font-weight:750;font-size:21px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #edf0ed;padding:12px 0}
+.row:last-child{border-bottom:0}.row small{display:block;color:var(--muted)}
+.row button{width:auto;min-height:40px;padding:8px 12px;margin:0;white-space:nowrap}
+.notice{color:var(--muted);font-size:14px;margin-top:10px}
+#message{padding:12px;border-radius:12px;background:var(--pale);color:var(--green);display:none;margin-top:12px}
+@media(max-width:420px){main{padding:14px 10px 35px}.card{padding:16px}h1{font-size:27px}.grid{gap:9px}}
+</style>
+</head>
+<body>
+<main>
+<header><h1>🍻 Comptoir boissons</h1><p class="sub">Ventes et gestion du stock</p></header>
+<section class="card">
+<h2>Résumé</h2>
+<div class="grid">
+<div class="stat"><span>Chiffre d’affaires</span><strong id="revenue">0,00 €</strong></div>
+<div class="stat"><span>Articles vendus</span><strong id="soldCount">0</strong></div>
+<div class="stat"><span>Articles en stock</span><strong id="stockCount">À configurer</strong></div>
+<div class="stat"><span>Nombre de ventes</span><strong id="saleCount">0</strong></div>
+</div>
+</section>
+<section class="card">
+<h2>Enregistrer une vente</h2>
+<label for="saleProduct">Boisson / article</label><select id="saleProduct"></select>
+<div class="grid">
+<div><label for="saleQty">Quantité</label><input id="saleQty" type="number" min="1" step="1" value="1"></div>
+<div><label for="salePrice">Prix unitaire (€)</label><input id="salePrice" type="number" min="0" step="0.01" readonly></div>
+</div>
+<div class="total">Total : <span id="saleTotal">—</span></div>
+<button id="sellBtn">＋ Enregistrer la vente</button>
+<p class="notice">Configure d’abord le stock de chaque article dans la section ci-dessous.</p>
+<div id="message" role="status"></div>
+</section>
+<section class="card">
+<h2>Stocks et prix</h2>
+<label for="stockProduct">Article à réapprovisionner</label><select id="stockProduct"></select>
+<label for="stockQty">Quantité à ajouter</label><input id="stockQty" type="number" min="1" step="1" value="1">
+<button class="secondary" id="addStockBtn">＋ Ajouter au stock</button>
+<h3>Articles et stocks</h3><div id="inventory"></div>
+<h3>Ajouter un article</h3>
+<label for="newName">Nom</label><input id="newName" type="text" placeholder="Ex. Café">
+<div class="grid">
+<div><label for="newPrice">Prix (€)</label><input id="newPrice" type="number" min="0" step="0.01" placeholder="2,00"></div>
+<div><label for="newStock">Stock de départ</label><input id="newStock" type="number" min="0" step="1" value="0"></div>
+</div>
+<button id="newProductBtn">＋ Ajouter l’article</button>
+</section>
+<section class="card">
+<h2>Dernières ventes</h2><div id="history"><p class="notice">Aucune vente enregistrée.</p></div>
+<button class="secondary" id="undoBtn">↶ Annuler la dernière vente</button>
+<button class="secondary" id="csvBtn">Exporter le bilan CSV</button>
+<button class="danger" id="resetBtn">Nouvelle soirée / tout remettre à zéro</button>
+</section>
+<p class="notice">Les données sont enregistrées dans ce navigateur sur cet appareil. Elles ne sont pas synchronisées entre appareils.</p>
+</main>
+<script>
+(function(){
+const initial=[
+["Jupiler",2.00,0],["Leffe",3.00,0],["Hoegaarden",2.50,0],
+["Eau plate",1.50,0],["Eau pétillante",1.50,0],["Coca",2.00,0],
+["Coca zéro",2.00,0],["Ice Tea regular",2.50,0],["Ice Tea green",2.50,0],
+["Aquarius citron",2.50,0],["Aquarius Red Peach",2.50,0],["Chips",1.50,0]
+];
+const key="comptoirBoissonsSimpleV1";
+let state;
+try{state=JSON.parse(localStorage.getItem(key)||"null")}catch(e){state=null}
+if(!state||!Array.isArray(state.products))state={products:initial.map((x,i)=>({id:i+1,name:x[0],price:x[1],stock:x[2],configured:false,sold:0})),sales:[],nextId:13};
+function save(){try{localStorage.setItem(key,JSON.stringify(state))}catch(e){}}
+const $=id=>document.getElementById(id);
+const money=n=>Number(n||0).toLocaleString("fr-BE",{style:"currency",currency:"EUR"});
+const product=id=>state.products.find(p=>p.id===Number(id));
+function options(select,selected){select.innerHTML="";state.products.forEach(p=>{let o=document.createElement("option");o.value=p.id;o.textContent=p.name;select.appendChild(o)});if(selected&&product(selected))select.value=selected}
+function msg(t){$("message").textContent=t;$("message").style.display="block";setTimeout(()=>$("message").style.display="none",3500)}
+function render(){
+let saleSelected=$("saleProduct").value,stockSelected=$("stockProduct").value;
+options($("saleProduct"),saleSelected);options($("stockProduct"),stockSelected);
+updatePrice();renderInventory();renderHistory();
+$("revenue").textContent=money(state.sales.reduce((a,s)=>a+s.total,0));
+$("soldCount").textContent=state.sales.reduce((a,s)=>a+s.qty,0);
+$("saleCount").textContent=state.sales.length;
+const configured=state.products.filter(p=>p.configured);
+$("stockCount").textContent=configured.length?configured.reduce((a,p)=>a+p.stock,0):"À configurer";
+}
+function updatePrice(){const p=product($("saleProduct").value);$("salePrice").value=p?Number(p.price).toFixed(2):"";const q=Math.max(0,parseInt($("saleQty").value,10)||0);$("saleTotal").textContent=p&&q?money(p.price*q):"—"}
+function renderInventory(){
+const box=$("inventory");box.innerHTML="";
+state.products.forEach(p=>{let row=document.createElement("div");row.className="row";let left=document.createElement("div");left.innerHTML="<strong></strong><small></small>";left.firstChild.textContent=p.name;left.lastChild.textContent=money(p.price)+" · "+(p.configured?p.stock+" en stock":"stock non configuré");let btn=document.createElement("button");btn.className="secondary";btn.textContent="Modifier";btn.onclick=()=>editProduct(p.id);row.append(left,btn);box.appendChild(row)})
+}
+function editProduct(id){const p=product(id);if(!p)return;let price=prompt("Prix unitaire de "+p.name+" (€) :",String(p.price).replace(".",","));if(price===null)return;price=Number(price.replace(",","."));if(!Number.isFinite(price)||price<0){alert("Prix invalide.");return}let stock=prompt("Stock total actuellement disponible pour "+p.name+" :",String(p.stock));if(stock===null)return;stock=Number(stock);if(!Number.isInteger(stock)||stock<0){alert("Stock invalide.");return}if(stock<p.sold){alert("Le stock ne peut pas être inférieur aux unités déjà vendues ("+p.sold+").");return}p.price=price;p.stock=stock;p.configured=true;save();render();msg("Prix et stock mis à jour.")}
+function renderHistory(){const box=$("history");box.innerHTML="";if(!state.sales.length){box.innerHTML='<p class="notice">Aucune vente enregistrée.</p>';return}state.sales.slice().reverse().slice(0,20).forEach(s=>{const row=document.createElement("div");row.className="row";const d=document.createElement("div");d.innerHTML="<strong></strong><small></small>";d.firstChild.textContent=s.name+" × "+s.qty;d.lastChild.textContent=new Date(s.time).toLocaleTimeString("fr-BE",{hour:"2-digit",minute:"2-digit"})+" · "+money(s.total);row.appendChild(d);box.appendChild(row)})}
+$("saleProduct").addEventListener("change",updatePrice);$("saleQty").addEventListener("input",updatePrice);
+$("sellBtn").addEventListener("click",()=>{const p=product($("saleProduct").value),q=Number($("saleQty").value);if(!p){msg("Choisis un article.");return}if(!Number.isInteger(q)||q<1){msg("Indique une quantité entière supérieure à zéro.");return}if(!p.configured){msg("Configure d’abord le stock de cet article dans « Stocks et prix ».");return}if(q>p.stock){msg("Stock insuffisant : il reste "+p.stock+".");return}p.stock-=q;p.sold+=q;state.sales.push({id:Date.now(),productId:p.id,name:p.name,qty:q,price:p.price,total:Math.round(p.price*q*100)/100,time:new Date().toISOString()});save();render();$("saleQty").value="1";updatePrice();msg("Vente enregistrée !")});
+$("addStockBtn").addEventListener("click",()=>{const p=product($("stockProduct").value),q=Number($("stockQty").value);if(!p){msg("Choisis un article.");return}if(!Number.isInteger(q)||q<1){msg("Indique une quantité entière supérieure à zéro.");return}p.stock=(p.configured?p.stock:0)+q;p.configured=true;save();render();msg(q+" unité(s) ajoutée(s) à "+p.name+".")});
+$("newProductBtn").addEventListener("click",()=>{const name=$("newName").value.trim(),price=Number($("newPrice").value),stock=Number($("newStock").value);if(!name){alert("Entre le nom de l’article.");return}if($("newPrice").value===""||!Number.isFinite(price)||price<0){alert("Entre un prix valide.");return}if(!Number.isInteger(stock)||stock<0){alert("Entre un stock de départ valide.");return}if(state.products.some(p=>p.name.toLowerCase()===name.toLowerCase())){alert("Cet article existe déjà.");return}state.products.push({id:state.nextId++,name,price,stock,configured:true,sold:0});save();$("newName").value="";$("newPrice").value="";$("newStock").value="0";render();msg("Article ajouté.")});
+$("undoBtn").addEventListener("click",()=>{if(!state.sales.length){msg("Aucune vente à annuler.");return}if(!confirm("Annuler la dernière vente ?"))return;const s=state.sales.pop(),p=product(s.productId);if(p){p.stock+=s.qty;p.sold=Math.max(0,p.sold-s.qty)}save();render();msg("Dernière vente annulée.")});
+$("csvBtn").addEventListener("click",()=>{let rows=[["Heure","Article","Quantité","Prix unitaire","Total"],...state.sales.map(s=>[new Date(s.time).toLocaleString("fr-BE"),s.name,s.qty,s.price.toFixed(2),s.total.toFixed(2)])];const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(";")).join("\r\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8;"}));a.download="bilan-comptoir.csv";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
+$("resetBtn").addEventListener("click",()=>{if(!confirm("Effacer toutes les ventes et remettre les stocks à zéro ? Les articles et leurs prix seront conservés."))return;state.sales=[];state.products.forEach(p=>{p.stock=0;p.sold=0;p.configured=false});save();render();msg("Nouvelle soirée prête.")});
+render();
+})();
+</script>
+</body>
+</html>
